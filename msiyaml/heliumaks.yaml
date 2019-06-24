@@ -1,0 +1,40 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: helium
+  labels:
+    app: helium
+    aadpodidbinding: helium_msi_selector
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: helium
+        aadpodidbinding: helium_msi_selector
+    spec:
+      containers:
+      - name: helium
+        image: {Azure Container Registry address}/helium
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        - name: KEY_VAULT_URL
+          value: "{URL for the Key Vault}"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: helium-lb
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 8080
+  selector:
+    app: helium

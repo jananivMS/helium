@@ -1,4 +1,4 @@
-# Deploying a Helium Linux Container in Azure App Services for Containers
+# Deploying a Helium Linux Container in Azure Kubernetes Service (AKS) using a Managed Service Identity (MSI)
 
 ## Before Starting
 
@@ -25,10 +25,12 @@ In order for the Helium demonstration to work, Azure infrastructure must first b
 2. [Create an Azure Service Principal](#create-an-azure-service-principal)
 3. [Create the Resource Group](#create-the-resource-group)
 4. [Create an Azure Container Registry](#create-an-azure-container-registry)
-5. [Create your Application Service Plan](#create-your-application-service-plan)
-6. [Create and Setup a CosmosDB](#create-and-setup-a-cosmosdb)
-7. [Configure Application Insights for Application Monitoring](#configure-application-insights-for-application-monitoring)
-8. [Create and Configure an Azure KeyVault](#create-and-configure-an-azure-keyvault)
+5. [Create an Azure Kubernetes Service Cluster](#create-azure-kubernetes-service)
+6. [Create a Managed Service Identity](#create-managed-service-identity)
+7. [Configure Azure Kubernetes Service Bindings](#configure-azure-kubernetes-service-bindings)
+8. [Create and Setup a CosmosDB](#create-and-setup-a-cosmosdb)
+9. [Configure Application Insights for Application Monitoring](#configure-application-insights-for-application-monitoring)
+10. [Create and Configure an Azure KeyVault](#create-and-configure-an-azure-keyvault)
 
 ### Login to Azure
 
@@ -152,22 +154,74 @@ $ az acr credential show --name {app_prefix}heliumacr
 
 Make note of the _username_ and one of the two _password_s (either is fine) as they will be needed later.
 
-### Create your Application Service Plan
+### Create Azure Kubernetes Service
 
-In order to deploy a web application, an App Service Plan must first be created:
+Next, an Azure Kubernetes Service (AKS) cluster needs to be created. In order to create it, execute the following:
 
 ```bash
-az appservice plan create --name {app_prefix}heliumapp --resource-group {app_prefix}helium --sku B1 --is-linux
+$ az aks create \
+    --resource-group {app_prefix}helium \
+    --name {app_prefix}heliumaks \
+    --node-count 3 \
+    --service-principal {service principal appId} \
+    --client-secret {service principal password} \
+    --generate-ssh-keys \
+    --location eastus
 {
-  "freeOfferExpirationTime": "2019-05-17T17:50:45.863333",
-  "geoRegion": "East US",
-  "hostingEnvironmentProfile": null,
-  "hyperV": false,
-  "id": "/subscriptions/zzz0bca0-7a3c-44bd-b54c-4bb1e9zzzzzz/resourceGroups/{app_prefix}helium/providers/Microsoft.Web/serverfarms/{app_prefix}heliumapp",
-  "isSpot": false,
-  "isXenon": false,
-  "kind": "linux", ...
+  "aadProfile": null,
+  "addonProfiles": null,
+  "agentPoolProfiles": [
+    {
+      "availabilityZones": null,
+      "count": 3,
+      "enableAutoScaling": null,
+      "maxCount": null,
+      "maxPods": 110,
+      "minCount": null,
+      "name": "nodepool1",
+      ...
 ```
+
+Now that the AKS cluster has been created, kubectl needs to be set to point to the new AKAS cluster:
+
+```bash
+$ az aks get-credentials --name {app_prefix}heliumaks \
+    --resource-group {app_prefix}helium
+```
+
+Now finally, the AAD Pod Identity pod must be installed into the cluster.
+
+```bash
+$ kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
+```
+
+At this point the AKS cluster is setup and configured.
+
+### Create Managed Service Identity
+
+In order for Helium to be able to extract priviledged secrets (such as a Cosmos DB access key), a managed identity needs to be created:
+
+```bash
+$ az identity create --resource-group {app_prefix}helium --name {app_prefix}heliumid -o json
+{
+  "clientId": "badb153f-zzzz-zzzz-8b00-97c134b99cab",
+  "clientSecretUrl": "https://control-eastus.identity.azure.net/subscriptions/7060bca0-zzzz-zzzz-zzzz-4bb1e9facfac/resourcegroups/{app_prefix}helium/providers/Microsoft.ManagedIdentity/userAssignedIdentities/{app_prefix}heliumid/credentials?tid=72f988bf-86f1-41af-91ab-2d7cd011db47&oid=4ddd3af9-de12-4b3f-b897-2c176a525f3a&aid=badb153f-842b-400c-8b00-97c134b99cab",
+  "id": "/subscriptions/7060bca0-7a3c-44bd-b54c-4bb1e9facfac/resourcegroups/{app_prefix}helium/providers/Microsoft.ManagedIdentity/userAssignedIdentities/{app_prefix}heliumid",
+  "location": "eastus2",
+  "name": "{app_prefix}heliumid",
+  "principalId": "4ddd3af9-zzzz-zzzz-zzzz-2c176a525f3a",
+  "resourceGroup": "{app_prefix}helium",
+  "tags": {},
+  "tenantId": "72f988bf-zzzz-zzzz-zzzz-2d7cd011db47",
+  "type": "Microsoft.ManagedIdentity/userAssignedIdentities"
+}
+```
+
+It is important that you save a copy of the JSON output of the above command (as some of the information will be needed in later steps)
+
+### Configure Azure Kubernetes Service Bindings
+
+In the *msiyaml* folder of the project there are 
 
 ### Create and Setup a CosmosDB
 

@@ -1,4 +1,4 @@
-# Deploying a Helium Linux Container in Azure App Services for Containers
+# Deploying a Helium Linux Container in Azure Web Applications for Containers (WAC)
 
 ## Before Starting
 

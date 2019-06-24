@@ -1,0 +1,7 @@
+apiVersion: "aadpodidentity.k8s.io/v1"
+kind: AzureIdentityBinding
+metadata:
+  name: helium-identity-binding
+spec:
+  AzureIdentity: {app_prefix}heliumid
+  Selector: helium_msi_selector
