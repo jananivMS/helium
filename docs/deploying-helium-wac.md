@@ -252,7 +252,7 @@ $ az keyvault secret set --vault-name {app_prefix}heliumkeyvault --name "AppInsi
 Finally, create a new policy that allows the service principal to have KeyVault secret read access:
 
 ```bash
-$ az keyvault set-policy --name {app_prefix}heliumkeyvault --secret-permissions get --spn {appId from the service principal}
+$ az keyvault set-policy --name {app_prefix}heliumkeyvault --secret-permissions list get --key-permissions list get --spn {appId from the service principal}
 {
   "id": "/subscriptions/zzzzzzzz-7a3c-zzzz-zzzz-4bb1e9facfac/resourceGroups/{app_prefix}helium/providers/Microsoft.KeyVault/vaults/{app_prefix}heliumkeyvault",
   "location": "eastus",

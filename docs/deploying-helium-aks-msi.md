@@ -193,6 +193,17 @@ Now finally, the AAD Pod Identity pod must be installed into the cluster.
 
 ```bash
 $ kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
+serviceaccount/aad-pod-id-nmi-service-account created
+customresourcedefinition.apiextensions.k8s.io/azureassignedidentities.aadpodidentity.k8s.io created
+customresourcedefinition.apiextensions.k8s.io/azureidentitybindings.aadpodidentity.k8s.io created
+customresourcedefinition.apiextensions.k8s.io/azureidentities.aadpodidentity.k8s.io created
+clusterrole.rbac.authorization.k8s.io/aad-pod-id-nmi-role created
+clusterrolebinding.rbac.authorization.k8s.io/aad-pod-id-nmi-binding created
+daemonset.extensions/nmi created
+serviceaccount/aad-pod-id-mic-service-account created
+clusterrole.rbac.authorization.k8s.io/aad-pod-id-mic-role created
+clusterrolebinding.rbac.authorization.k8s.io/aad-pod-id-mic-binding created
+deployment.extensions/mic created
 ```
 
 At this point the AKS cluster is setup and configured.
@@ -217,11 +228,35 @@ $ az identity create --resource-group {app_prefix}helium --name {app_prefix}heli
 }
 ```
 
-It is important that you save a copy of the JSON output of the above command (as some of the information will be needed in later steps)
+It is important that you save a copy of the JSON output of the above command (as some of the information will be needed in later steps). Finally, apply this additional permission to the MSI:
+
+```bash
+$ az role assignment create --role "Managed Identity Operator" --assignee {service principal appId} --scope {MSI id}
+{
+  "canDelegate": null,
+  "id": "/subscriptions/7060bca0-zzzz-zzzz-zzzz-4bb1e9facfac/resourcegroups/{app_prefix}helium/providers/Microsoft.ManagedIdentity/userAssignedIdentities/{app_prefix}heliumid/providers/Microsoft.Authorization/roleAssignments/ebdccc7b-zzzz-zzzz-zzzz-44c73ebcc211",
+  "name": "ebdccc7b-zzzz-zzzz-zzzz-44c73ebcc211",
+  ----
+```
 
 ### Configure Azure Kubernetes Service Bindings
 
-In the *msiyaml* folder of the project there are 
+In the *msiyaml* folder of the project there are 2 YAML files which need to be updated:
+
+1. aadpodidentity.yaml
+2. aadpodidentitybinding.yaml
+
+Edit these two files and make sure to fill in all needed missing information specified between *{...}*.
+
+After editing both files, execute the following two commands:
+
+``` bash
+$ kubectl apply -f aadpodidentity.yaml
+azureidentity.aadpodidentity.k8s.io/{app_prefix}heliumid created
+
+$ kubectl apply -f aadpodidentitybinding.yaml 
+azureidentitybinding.aadpodidentity.k8s.io/helium-identity-binding created
+```
 
 ### Create and Setup a CosmosDB
 
@@ -238,7 +273,7 @@ $ az cosmosdb create --name {app_prefix}heliumcosmosdb --resource-group {app_pre
   }, ...
 ```
 
-Next, follow the instructions importing the neccessary data into the CosmosDB instance: [https://github.com/4-co/imdb](https://github.com/4-co/imdb).
+Next, follow the instructions importing the neccessary data into the CosmosDB instance: [git c](https://github.com/4-co/imdb).
 
 While logged-in to the [Azure Portal](https://portal.azure.com), examine your Cosmos DB instance - make note of your database's URL (it should look similar to: _https://{app_prefix}heliumcosmosdb.documents.azure.com:443/_). This will be needed in a later step.
 
@@ -271,6 +306,12 @@ $ az keyvault create --name {app_prefix}heliumkeyvault --resource-group {app_pre
   "name": "{app_prefix}heliumkeyvault",
   "properties": {
     "accessPolicies": [ ...
+```
+
+In order for the Managed Service Identity to access the key vault, an access policy has to be created:
+
+```bash
+$ az keyvault set-policy --name {app_prefix}heliumkeyvault --resource-group {app_prefix}helium --object-id {managed service identity principalId} --secret-permissions list get --key-permissions list get
 ```
 
 Now, add the CosmosDB access key as a KeyVault secret by executing the following commands:
@@ -306,7 +347,7 @@ $ az keyvault secret set --vault-name {app_prefix}heliumkeyvault --name "AppInsi
 Finally, create a new policy that allows the service principal to have KeyVault secret read access:
 
 ```bash
-$ az keyvault set-policy --name {app_prefix}heliumkeyvault --secret-permissions get --spn {appId from the service principal}
+$ az keyvault set-policy --name {app_prefix}heliumkeyvault --secret-permissions list get --key-permissions list get --spn {appId from the service principal}
 {
   "id": "/subscriptions/zzzzzzzz-7a3c-zzzz-zzzz-4bb1e9facfac/resourceGroups/{app_prefix}helium/providers/Microsoft.KeyVault/vaults/{app_prefix}heliumkeyvault",
   "location": "eastus",

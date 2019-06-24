@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: helium
-        image: {Azure Container Registry address}/helium
+        image: {Azure Container Registry address}/helium:0.0
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

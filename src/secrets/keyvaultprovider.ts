@@ -59,7 +59,7 @@ export class KeyVaultProvider {
         this.logger.Trace("Initializing KeyVault");
         // TODO (seusher): Validate MSI works with App Service containers
         const creds = this.clientId === undefined || this.clientId === "" ?
-                    await msrestazure.loginWithAppServiceMSI({resource: "https://vault.azure.net"}) :
+                    await msrestazure.loginWithMSI({resource: "https://vault.azure.net"}) :
                     await msrestazure.loginWithServicePrincipalSecret(this.clientId, this.clientSecret, this.tenantId);
 
         this.client = new keyvault.KeyVaultClient(creds);
