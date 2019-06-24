@@ -27,6 +27,10 @@ spec:
         env:
         - name: KEY_VAULT_URL
           value: "{URL for the Key Vault}"
+        - name: COSMOSDB_URL
+          value: "{URL for the cosmos db}"
+        - name: TENANT_ID
+          value: "{your tenant id}"
 ---
 apiVersion: v1
 kind: Service
