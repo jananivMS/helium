@@ -383,59 +383,32 @@ Login Succeeded
 3. Build / Docker-ize Helium:
 
 ```bash
-$ docker build --target=release -t {app_prefix}heliumacr.azurecr.io/helium:canary .
+$ docker build --target=release -t {app_prefix}heliumacr.azurecr.io/helium:0.0 .
 ```
 
 4. Push the Helium container image to the ACR:
 
 ```bash
-$ docker push {app_prefix}heliumacr.azurecr.io/helium:canary
+$ docker push {app_prefix}heliumacr.azurecr.io/helium:0.0
 ```
 
 ### Deploy the Helium Container Image
 
-And finally, the last set of commands - deploying the web application from the container image! Deploying the Helium container image is as simple as executing the following commands:
+In the *msiyaml* folder of the project, edit the *heliumaks.yaml* file and make sure to fill in all needed missing information specified between *{...}*.
 
-1. Create the web application:
-
-```bash
-$ az webapp create --resource-group {app_prefix}helium --plan {app_prefix}heliumapp --name {prefix}helium --deployment-container-image-name {app_prefix}heliumacr.azurecr.io/helium:canary
-{
-  "availabilityState": "Normal",
-  "clientAffinityEnabled": true,
-  "clientCertEnabled": false,
-  "clientCertExclusionPaths": null,
-  "cloningInfo": null,
-  "containerSize": 0,
-  "dailyMemoryTimeQuota": 0,
-  "defaultHostName": "{prefix}helium.azurewebsites.net" ...
-```
-
-2. Set environment variables (which configure Helium):
+Now, it is time to deploy the cluster with the following command:
 
 ```bash
-$ az webapp config appsettings set --resource-group {app_prefix}helium --name {prefix}helium --settings COSMOSDB_URL="{Cosmos DB URL}"
-$ az webapp config appsettings set --resource-group {app_prefix}helium --name {prefix}helium --settings KEY_VAULT_URL="{KeyVault URL}"
-$ az webapp config appsettings set --resource-group {app_prefix}helium --name {prefix}helium --settings TENANT_ID={service principal tenand id}
-$ az webapp config appsettings set --resource-group {app_prefix}helium --name {prefix}helium --settings CLIENT_SECRET={service principal password}
-$ az webapp config appsettings set --resource-group {app_prefix}helium --name {prefix}helium --settings CLIENT_ID={service principal appId}
+$ kubectl apply -f heliumaks.yaml
 ```
 
-3. Configuration via the Azure Portal is needed. Open the [Azure Portal](https://portal.azure.com) and perform the following actions:
-  - Go to your resource group _{app_prefix}helium_
-  - Go to your web application _{app_prefix}helium_
-  - Go to **Container Settings**
-  - Click on **Single Container**
-  - Click on **Azure Container Registry**
-  - In **Registry** enter _{app_prefix}heliumacr_
-  - In **Image** enter _helium_
-  - In **Tag** enter _canary_
-  - Toggle **Continuous Deployment** to _on_ (if continuous deployment via webhooks is desired)
-  - Click **Save**
-  - Go to **Overview**
-  - Click **Restart**
+Next, watch to wait and see what public IP address is assigned to the application's load balancer:
 
-At this point, the web application has been completely deployed! It is now accessible at: **https://{prefix}helium.azurewebsites.net/api/movies**.
+```bash
+$ kubectl get service helium-ln --watch
+```
+
+Once the IP address is aassigned, Helium has been completely deployed to the AKS cluster! It is now accessible at: **https://{public ip address obtained above}:3000/api/movies**.
 
 ### Configure Dashboard with Azure Monitor Metrics
 
